@@ -86,3 +86,16 @@ The `NodeFeaturesPlugins` property must have this plugin added to it in the `slu
 NodeFeaturesPlugins=node_features/cpuinfo
    :
 ```
+
+Once enabled, the synthesized features the execution node's `slurmd` returns will augment any features configured statically in the `slurm.conf` file:
+
+```bash
+[PROMPT]$ cat /etc/slurm/slurm.conf
+   :
+NodeName=n[000-002,004-007,009-013] … Feature=Gen1 …
+   :
+
+[PROMPT]$ scontrol show node n013 | grep Features
+   AvailableFeatures=Gen1,VENDOR::GenuineIntel,MODEL::E5530,CACHE::8192KB,ISA::sse,ISA::sse2,ISA::sse4_1,ISA::sse4_2
+   ActiveFeatures=Gen1,VENDOR::GenuineIntel,MODEL::E5530,CACHE::8192KB,ISA::sse,ISA::sse2,ISA::sse4_1,ISA::sse4_2
+```
