@@ -34,7 +34,7 @@ The project includes a CMakeLists.txt file that makes the build simpler:
 [PROMPT]$ cd build-2025.11.12
 [PROMPT]$ cmake -DSLURM_PREFIX=/opt/shared/slurm/current \
                 -DSLURM_SOURCE_DIR=/opt/shared/slurm/current/src \
-                -DSLURM_BUILD_DIR=/opt/shared/slurm/current/build-2025.10.14 \
+                -DSLURM_BUILD_DIR=/opt/shared/slurm/current/src/build-2025.10.14 \
                 -DCMAKE_BUILD_TYPE=Release \
                 ..
 -- The C compiler identification is GNU 4.8.5
