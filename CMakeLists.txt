@@ -1,0 +1,58 @@
+CMAKE_MINIMUM_REQUIRED (VERSION 3.0)
+PROJECT (node_features_cpuinfo C)
+
+#
+# For finding packages:
+#
+INCLUDE(CheckIncludeFiles)
+INCLUDE(FindPackageHandleStandardArgs)
+
+IF (NOT SLURM_PREFIX)
+  SET (SLURM_PREFIX "/usr/local" CACHE PATH "Directory in which SLURM is installed.")
+ENDIF (NOT SLURM_PREFIX)
+IF (SLURM_PREFIX)
+  LIST(APPEND CMAKE_PREFIX_PATH ${SLURM_PREFIX})
+ENDIF (SLURM_PREFIX)
+
+IF (NOT SLURM_SOURCE_DIR)
+  SET (SLURM_SOURCE_DIR "${SLURM_PREFIX}/src" CACHE PATH "Directory containing the SLURM source package.")
+ENDIF (NOT SLURM_SOURCE_DIR)
+
+FIND_PATH(SLURM_INCLUDE_DIR NAMES slurm/slurm.h)
+FIND_LIBRARY(SLURM_LIBRARY NAMES libslurm.so)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(SLURM DEFAULT_MSG SLURM_LIBRARY SLURM_INCLUDE_DIR)
+IF (NOT SLURM_FOUND)
+  MESSAGE(FATAL_ERROR "SLURM library could not be found")
+ELSE (NOT SLURM_FOUND)
+  SET (SLURM_LIBRARIES ${SLURM_LIBRARY})
+  SET (SLURM_INCLUDE_DIRS ${SLURM_INCLUDE_DIR})
+  FIND_PATH(SLURM_MODULES_DIR NAMES lib/slurm DOC "Directory containing SLURM extensions.")
+  IF (NOT SLURM_MODULES_DIR)
+    MESSAGE(FATAL_ERROR "SLURM extensions directory could not be found")
+  ENDIF (NOT SLURM_MODULES_DIR)
+ENDIF (NOT SLURM_FOUND)
+MARK_AS_ADVANCED (SLURM_LIBRARIES SLURM_INCLUDE_DIRS)
+
+#
+# Validate the SLURM_SOURCE_DIR path
+#
+FIND_PATH(SLURM_XLATOR_H NAMES src/common/slurm_xlator.h PATHS ${SLURM_SOURCE_DIR})
+IF (NOT SLURM_XLATOR_H)
+  MESSAGE(FATAL_ERROR "${SLURM_SOURCE_DIR} does not appear to be a SLURM source tree")
+ENDIF (NOT SLURM_XLATOR_H)
+UNSET (SLURM_XLATOR_H CACHE)
+IF (NOT SLURM_BUILD_DIR)
+  FIND_PATH(SLURM_BUILD_DIR NAMES config.h PATHS ${SLURM_SOURCE_DIR})
+  IF (NOT SLURM_BUILD_DIR)
+    MESSAGE (FATAL_ERROR "SLURM build directory not found")
+  ENDIF (NOT SLURM_BUILD_DIR)
+ENDIF (NOT SLURM_BUILD_DIR)
+
+ADD_LIBRARY (node_features_cpuinfo MODULE node_features_cpuinfo.c)
+target_include_directories(node_features_cpuinfo BEFORE PUBLIC ${SLURM_INCLUDE_DIRS} ${SLURM_SOURCE_DIR} ${SLURM_BUILD_DIR})
+SET_TARGET_PROPERTIES (node_features_cpuinfo PROPERTIES PREFIX "" SUFFIX "" OUTPUT_NAME "node_features_cpuinfo.so")
+INSTALL (TARGETS node_features_cpuinfo DESTINATION ${SLURM_MODULES_DIR}/lib/slurm)
+
+ADD_EXECUTABLE (node_features_cpuinfo_test node_features_cpuinfo.c)
+target_compile_definitions(node_features_cpuinfo_test PUBLIC NODE_FEATURE_CPUINFO_TESTING)
+
