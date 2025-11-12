@@ -7,7 +7,7 @@ On Linux the `/proc/cpuinfo` file defines many of the features that jobs are lik
 
 ## Synthesized features
 
-All features synthesized by the plugin are formatted as **``TYPE::VALUE``**.  The possible **TYPE** values are:
+All features synthesized by the plugin are formatted as **``TYPE::VALUE``**.  The possible **``TYPE``** values are:
 
 | Type     | Description                                             |
 | -------- | ------------------------------------------------------- |
