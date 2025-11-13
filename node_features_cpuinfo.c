@@ -261,16 +261,17 @@ line_reader_nextline(
 typedef enum {
     cpuinfo_flags_sse           =  0,   /**< SSE */
     cpuinfo_flags_sse2          =  1,   /**< SSE2 */
-    cpuinfo_flags_sse4_1        =  2,   /**< SSE4.1 */
-    cpuinfo_flags_sse4_2        =  3,   /**< SSE4.2 */
-    cpuinfo_flags_avx           =  4,   /**< AVX */
-    cpuinfo_flags_avx2          =  5,   /**< AVX2 */
-    cpuinfo_flags_avx512f       =  6,   /**< AVX512 Foundation */
-    cpuinfo_flags_avx512dq      =  7,   /**< AVX512 Double and Quad words */
-    cpuinfo_flags_avx512cd      =  8,   /**< AVX512 Conflict Detection */
-    cpuinfo_flags_avx512bw      =  9,   /**< AVX512 Byte words  */
-    cpuinfo_flags_avx512vl      = 10,   /**< AVX512 Vector Length */
-    cpuinfo_flags_avx512_vnni   = 11,   /**< AVX512 Vector Neural Network Instructions */
+    cpuinfo_flags_ssse3         =  2,   /**< SSSE3 */
+    cpuinfo_flags_sse4_1        =  3,   /**< SSE4.1 */
+    cpuinfo_flags_sse4_2        =  4,   /**< SSE4.2 */
+    cpuinfo_flags_avx           =  5,   /**< AVX */
+    cpuinfo_flags_avx2          =  6,   /**< AVX2 */
+    cpuinfo_flags_avx512f       =  7,   /**< AVX512 Foundation */
+    cpuinfo_flags_avx512dq      =  8,   /**< AVX512 Double and Quad words */
+    cpuinfo_flags_avx512cd      =  9,   /**< AVX512 Conflict Detection */
+    cpuinfo_flags_avx512bw      = 10,   /**< AVX512 Byte words  */
+    cpuinfo_flags_avx512vl      = 11,   /**< AVX512 Vector Length */
+    cpuinfo_flags_avx512_vnni   = 12,   /**< AVX512 Vector Neural Network Instructions */
     cpuinfo_flags_MAX,                  /**< Index just beyond the last defined bit */
     cpuinfo_flags_START         =  0    /**< Index of the first bit */
 } cpuinfo_flags_t;
@@ -283,6 +284,7 @@ typedef enum {
 static const char* cpuinfo_flags_strings[] = {
         "sse",
         "sse2",
+        "ssse3",
         "sse4_1",
         "sse4_2",
         "avx",
