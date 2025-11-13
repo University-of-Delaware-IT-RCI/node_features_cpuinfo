@@ -76,6 +76,24 @@ Install the project...
 -- Installing: /opt/shared/slurm/current/lib/slurm/node_features_cpuinfo.so
 ```
 
+### Disabling plugin or test build
+
+To test the feature-checking code on a system lacking a Slurm build, the CMake system can be configured to omit the plugin entirely:
+
+```bash
+[PROMPT]$ cmake -DENABLE_BUILD_PLUGIN=OFF ..
+   :
+[PROMPT]$ make
+[ 50%] Building C object CMakeFiles/node_features_cpuinfo_test.dir/node_features_cpuinfo.c.o
+[100%] Linking C executable node_features_cpuinfo_test
+[100%] Built target node_features_cpuinfo_test
+```
+
+Likewise, to omit the test executable and build only the plugin:
+
+```bash
+[PROMPT]$ cmake -DENABLE_BUILD_TEST=OFF ..
+```
 
 ## Configuration changes
 
