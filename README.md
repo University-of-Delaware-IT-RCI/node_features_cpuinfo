@@ -13,8 +13,8 @@ All features synthesized by the plugin are formatted as **``TYPE::VALUE``**.  Th
 | -------- | ------------------------------------------------------- |
 | `VENDOR` | CPU vendor name (e.g. `GenuineIntel` or `AuthenticAMD`) |
 | `MODEL`  | succinct CPU model name extracted from the verbose name |
-| `CACHE`  | Kilobytes of cache reported by the CPU                  |
-| `ISA`    | Available ISA extensions (e.g. `avx512f` or `sse4_1`    |
+| `CACHE`  | kilobytes of cache reported by the CPU                  |
+| `ISA`    | available ISA extensions (e.g. `avx512f` or `sse4_1`)   |
 
 For a user to submit a job that requires the AVX512 Byte-Word and AVX512 Foundational ISA extensions, the command might look like:
 
