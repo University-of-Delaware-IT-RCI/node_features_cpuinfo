@@ -9,12 +9,13 @@ On Linux the `/proc/cpuinfo` file defines many of the features that jobs are lik
 
 All features synthesized by the plugin are formatted as **``TYPE::VALUE``**.  The possible **``TYPE``** values are:
 
-| Type     | Description                                             |
-| -------- | ------------------------------------------------------- |
-| `VENDOR` | CPU vendor name (e.g. `GenuineIntel` or `AuthenticAMD`) |
-| `MODEL`  | succinct CPU model name extracted from the verbose name |
-| `CACHE`  | kilobytes of cache reported by the CPU                  |
-| `ISA`    | available ISA extensions (e.g. `avx512f` or `sse4_1`)   |
+| Type     | Description                                                 |
+| -------- | ----------------------------------------------------------- |
+| `VENDOR` | CPU vendor name (e.g. `GenuineIntel` or `AuthenticAMD`)     |
+| `MODEL`  | succinct CPU model name extracted from the verbose name     |
+| `CACHE`  | kilobytes of cache reported by the CPU                      |
+| `ISA`    | available ISA extensions (e.g. `avx512f` or `sse4_1`)       |
+| `PCI`    | specific PCI devices if detection is enabled for the plugin |
 
 For a user to submit a job that requires the AVX512 Byte-Word and AVX512 Foundational ISA extensions, the command might look like:
 
@@ -23,6 +24,16 @@ For a user to submit a job that requires the AVX512 Byte-Word and AVX512 Foundat
 ```
 
 The syntax for using multiple features in a constraint are documented in the `sbatch` man page.
+
+### PCI devices
+
+At compile time the plugin can be built to include scanning of the PCI buses for devices of interest.  If present, a ``PCI::<SUBTYPE>::<MODEL>`` feature will be produced.  For example, given the device lists in the source code in this repository, a node with several NVIDIA V100 GPUs would include the ``PCI::GPU::V100`` in its feature list.
+
+Quite often this will be redundant information since a GRES will already exist for the nodes affected.  However, if a user wants to constrain a CPU-only job to a node that possesses a specific GPU, these features would be useful.
+
+Likewise, any inhomogeneous PCI hardware shared by all jobs on a node (e.g. network interfaces) that lacks a GRES could be presented as a feature via this plugin.
+
+The PCI scanning is added to the plugin by default and requires the pciaccess library and development header.  It can be omitted by setting `-DENABLE_PCI_DETECTION=Off` when the CMake build is configured.
 
 
 ## Building

@@ -333,6 +333,9 @@ cpuinfo_features_is_str_ours(
     if ( str_startswith(feature_str, "MODEL::", feature_str_len) ) return true;
     if ( str_startswith(feature_str, "CACHE::", feature_str_len) ) return true;
     if ( str_startswith(feature_str, "ISA::", feature_str_len) ) return true;
+#ifdef HAVE_PCI_DETECTION
+    if ( str_startswith(feature_str, "PCI::", feature_str_len) ) return true;
+#endif
     return false;
 }
 
@@ -841,6 +844,195 @@ static bool is_node_features_inited = false;
 static cpuinfo_features_t node_features;
 
 
+#ifdef HAVE_PCI_DETECTION
+
+#include <pciaccess.h>
+
+/**
+ * @brief   Map a feature name to a PCI device id
+ */
+typedef struct pci_device_feature {
+    uint32_t                device_id;      /**< 16-bit PCI device id */
+    const char              *feature_name;  /**< Slurm feature name */
+} pci_device_feature_t;
+
+/**
+ * @brief   Map a list of device-feature matches to a PCI vendor id
+ */
+typedef struct pci_vendor_devices {
+    uint32_t                vendor_id;          /**< 16-bit PCI vendor id */
+    pci_device_feature_t    device_features[];  /**< array of device-to-feature mappings */
+} pci_vendor_devices_t;
+
+/**
+ * @brief   Pointer to a vendor device list
+ */
+typedef pci_vendor_devices_t * pci_vendor_devices_ptr; 
+
+/**
+ * @brief   Summarize a vendor device list to stdout
+ * @details Writes a summary of the vendors and each device associated
+ *          with that vendor from the @a vendor_devices list
+ * @param   vendor_devices  NUL-terminated list of vendor device pointers
+ */
+static void
+pci_vendor_devices_summary(
+    pci_vendor_devices_ptr  *vendor_devices
+)
+{
+    while ( vendor_devices && *vendor_devices ) {
+        pci_vendor_devices_t    *dev = *vendor_devices;
+        pci_device_feature_t    *features = &dev->device_features[0];
+        
+        printf("0x%04X\n", dev->vendor_id);
+        while ( features->device_id ) {
+            printf("0x%04X 0x%04X %s\n", dev->vendor_id, features->device_id, features->feature_name);
+            features++;
+        }
+        
+        vendor_devices++;
+    }
+}
+
+/**
+ * @brief   Iterate the PCI buses and compile features associated with
+ *          found devices
+ * @details Find all devices matching the PCI @a device_class (as masked by
+ *          @a device_class_mask) and if any appear in the @a vendor_devices
+ *          list add their feature names to @out_features.
+ * @param   vendor_devices      NUL-terminated list of vendor device pointers
+ * @param   device_class        24-bit device class value
+ * @param   device_class_mask   Mask indicating bits to compare in the
+ *                              @a device_class
+ * @param   out_features        Pointer to the C string pointer to contain
+ *                              the features
+ * @return  On any error, boolean false is returned.  Otherwise, boolean true
+ *          is returned.
+ */
+static bool
+pci_device_lookup(
+    pci_vendor_devices_ptr  *vendor_devices,
+    uint32_t                device_class,
+    uint32_t                device_class_mask,
+    char*                   *out_features
+)
+{
+    static bool                 is_pci_inited = false;
+    
+    struct pci_device_iterator  *iter;
+    struct pci_id_match         match;
+    struct pci_device           *device;
+    
+    char                        *feature_list = NULL;
+    const char                  *delim = (out_features && *out_features) ? "," : "";
+    
+    if ( ! out_features ) return false;
+    
+    if ( ! is_pci_inited ) {
+        int                     rc = pci_system_init();
+        if ( rc != 0 ) {
+            // Handle error
+            fprintf(stderr, "ERROR: unable to init PCI access (%d)\n", rc);
+            return false;
+        }
+        is_pci_inited = true;
+    }
+    //
+    // Iterate over display devices (class id 0x03):
+    //
+    match.vendor_id = PCI_MATCH_ANY;
+    match.device_id = PCI_MATCH_ANY;
+    match.subvendor_id = PCI_MATCH_ANY;
+    match.subdevice_id = PCI_MATCH_ANY;
+    match.device_class = device_class;
+    match.device_class_mask = device_class_mask;
+    match.match_data = 0;
+    iter = pci_id_match_iterator_create(&match);
+    while ((device = pci_device_next(iter)) != NULL) {
+        pci_vendor_devices_ptr  *by_vendor = vendor_devices;
+        bool                    is_found = false;
+        
+        while ( ! is_found && *by_vendor ) {
+            if ( (*by_vendor)->vendor_id == device->vendor_id ) {
+                pci_device_feature_t    *features = &(*by_vendor)->device_features[0];
+                
+                while ( features->device_id ) {
+                    if ( features->device_id == device->device_id ) {
+                        if ( ! feature_list || (strstr(feature_list, features->feature_name) == NULL) ) {
+                            xstrfmtcat(feature_list, "%s%s", delim, features->feature_name);
+                            delim = ",";
+                            is_found = true;
+                            break;
+                        }
+                    }
+                    features++;
+                }
+            }
+            by_vendor++;
+        }
+    }
+    pci_iterator_destroy(iter);
+    if ( out_features ) {
+        *out_features = feature_list;
+    } else {
+        xfree(feature_list);
+    }
+    return true;
+}
+
+/**
+ * @var     nvidia_gpu_devices
+ * @brief   The list of NVIDIA GPU devices that exist in this cluster
+ */
+static pci_vendor_devices_t     nvidia_gpu_devices = {
+            .vendor_id = 0x10de, .device_features = {
+            /* P100 PCI, 12GB  */ { .device_id = 0x15f7, .feature_name = "PCI::GPU::P100" },
+            /* V100 SXM2, 32GB */ { .device_id = 0x1db5, .feature_name = "PCI::GPU::V100" },
+            /* V100 PCI, 32GB  */ { .device_id = 0x1db6, .feature_name = "PCI::GPU::V100" },
+            /* T4              */ { .device_id = 0x1eb8, .feature_name = "PCI::GPU::T4"   },
+            /* A100 PCI, 80GB  */ { .device_id = 0x20b5, .feature_name = "PCI::GPU::A100" },
+            /* A40             */ { .device_id = 0x2235, .feature_name = "PCI::GPU::A40"  },
+                                  { .device_id = 0x0000, .feature_name = NULL             }
+    } };
+    
+/**
+ * @var     amd_gpu_devices
+ * @brief   The list of AMD GPU devices that exist in this cluster
+ */
+static pci_vendor_devices_t     amd_gpu_devices = {
+            .vendor_id = 0x1002, .device_features = {
+            /* Mi50     */ { .device_id = 0x66a1, .feature_name = "PCI::GPU::MI50"  },
+            /* Mi100    */ { .device_id = 0x738c, .feature_name = "PCI::GPU::MI100" },
+                           { .device_id = 0x0000, .feature_name = NULL              }
+    } };
+    
+/**
+ * @var     pci_known_devices
+ * @brief   The list of PCI vendors (and their devices) that exist in this cluster
+ */
+static pci_vendor_devices_ptr   pci_known_devices[] = {
+                                    &nvidia_gpu_devices,
+                                    &amd_gpu_devices,
+                                    NULL
+                                };
+
+/**
+ * @var     pci_known_device_class
+ * @brief   The PCI device class we're interested in iterating
+ */
+static const uint32_t           pci_known_device_class = 0x030000;
+
+/**
+ * @var     pci_known_device_class_mask
+ * @brief   The bitmask for PCI device class components we're
+ *          interested in iterating
+ */
+static const uint32_t           pci_known_device_class_mask = 0xFF0000;
+
+
+#endif
+
+
 /**
  * @brief   Load plugin
  * @return  SLURM_SUCCESS if successful, an error code otherwise
@@ -929,15 +1121,20 @@ node_features_p_node_state(
         unsigned int        i = cpuinfo_flags_START, mask = 1;
         char                *add_features = NULL;
         const char          *delim = "";
-    
-        if ( node_features.vendor_id ) xstrfmtcat(add_features, "VENDOR::%s", node_features.vendor_id), delim = ",";
+        
+#ifdef HAVE_PCI_DETECTION
+        if ( pci_device_lookup(pci_known_devices, pci_known_device_class, pci_known_device_class_mask, &add_features) ) {
+            if ( add_features && *add_features ) delim = ",";
+        }
+#endif
+        if ( node_features.vendor_id ) xstrfmtcat(add_features, "%sVENDOR::%s", delim, node_features.vendor_id), delim = ",";
         if ( node_features.model_name ) xstrfmtcat(add_features, "%sMODEL::%s", delim, node_features.model_name), delim = ",";
         if ( node_features.model_name ) xstrfmtcat(add_features, "%sCACHE::%uKB", delim, node_features.cache_kb), delim = ",";
         while ( i < cpuinfo_flags_MAX ) {
             if ( (node_features.flags & mask) == mask ) xstrfmtcat(add_features, "%sISA::%s", delim, cpuinfo_flags_strings[i]), delim = ",";
             i++, mask <<= 1;
         }
-        if ( add_features ) {
+        if ( add_features && *add_features ) {
             if ( *avail_modes ) {
                 xstrfmtcat(*avail_modes, ",%s", add_features);
             } else {
