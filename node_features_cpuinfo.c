@@ -1312,6 +1312,7 @@ node_features_p_node_xlate(
         
         /* Produce    new_features U (orig_features - our_features): */
         out_features = xstrdup(new_features);
+        if ( *out_features ) delim = ",";
         
         orig_copy = xstrdup(orig_features);
         tokarg1 = orig_copy;
