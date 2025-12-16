@@ -627,7 +627,7 @@ __contains_str(
     
     if ( ! haystack || ! *haystack ) return false;
     
-    if ( ! delimiter || !*delimiter ) delimiter = " \t";
+    if ( ! delimiter || ! *delimiter ) delimiter = " \t";
     
     while ( *p ) {
         char    *found = strstr(p, needle);
@@ -1288,66 +1288,47 @@ node_features_p_changible_feature(
  */
 extern char*
 node_features_p_node_xlate(
-    char    *new_features,
-    char    *orig_features,
-	char    *avail_features
+    char        *new_features,
+    char        *orig_features,
+	char        *avail_features
 )
 {
-    char    *out_features = NULL;
-    char    *tokptr, *saveptr = NULL, *delim = "";
+    char        *out_features = NULL;
     
     debug("node_features_p_node_xlate: new_features = %s", new_features ? new_features : "(null)");
-    debug("node_features_p_node_xlate: orig_features = %s", new_features ? new_features : "(null)");
-    debug("node_features_p_node_xlate: avail_features = %s", new_features ? new_features : "(null)");
+    debug("node_features_p_node_xlate: orig_features = %s", orig_features ? orig_features : "(null)");
+    debug("node_features_p_node_xlate: avail_features = %s", avail_features ? avail_features : "(null)");
     
-    /* Rebuild orig_features by walking each feature string and
-       testing for ownership by us.  If we don't own the feature
-       it gets appended to the new list.  If we do own the feature,
-       check whether or not it exists in new_features and append to
-       the new list if so.
-       
-       Then walk the new_features and check that each appears in
-       the new list, appending any that do not.
-       
-       In all cases a feature owned by us should be verified as
-       being present in avail_features, as well. */
-       
-    if ( orig_features ) {
-        char    *orig_copy = xstrdup(orig_features);
-        char    *tokarg1 = orig_copy;
-        
-        while ( (tokptr = strtok_r(tokarg1, ",", &saveptr)) ) {
-            bool    should_append = true;
-            
-            /* Reset tokarg1 to continue in the current string on subsequent iterations: */
-            tokarg1 = NULL;
-            
-            if ( cpuinfo_features_is_str_ours(tokptr, -1) ) {
-                /* Does this feature appear in both the new and avail lists? */
-                should_append = ( __contains_str(new_features, tokptr, ",") && __contains_str(avail_features, tokptr, ",") );
-            }
-            if ( should_append ) xstrfmtcat(out_features, "%s%s", delim, tokptr), delim = ",";
-        }
-        xfree(orig_copy);
+    /* Short-circuit, no union necessary: */
+    if ( ! new_features || ! *new_features ) {
+        out_features = xstrdup(orig_features);
     }
-    if ( new_features ) {
-        char    *new_copy = xstrdup(new_features);
-        char    *tokarg1 = new_copy;
+    else if ( ! orig_features || ! *orig_features ) {
+        out_features = xstrdup(new_features);
+    }
+    else {
+        char    *tokptr, *saveptr = NULL, *delim = "";
+        char    *orig_copy, *tokarg1;
         
+        /* Produce    new_features U (orig_features - our_features): */
+        out_features = xstrdup(new_features);
+        
+        orig_copy = xstrdup(orig_features);
+        tokarg1 = orig_copy;
         while ( (tokptr = strtok_r(tokarg1, ",", &saveptr)) ) {
-            bool    should_append = false;
-            
             /* Reset tokarg1 to continue in the current string on subsequent iterations: */
             tokarg1 = NULL;
             
-            if ( cpuinfo_features_is_str_ours(tokptr, -1) ) {
-                /* Does this feature appear in the avail list but NOT in the output list? */
-                if ( __contains_str(avail_features, tokptr, ",") && ! __contains_str(out_features, tokptr, ",") ) {
-                    xstrfmtcat(out_features, "%s%s", delim, tokptr), delim = ",";
+            /* Only add those which don't belong to us: */
+            if ( ! cpuinfo_features_is_str_ours(tokptr, -1) ) {
+                /* Ensure it's not already in the list: */
+                if ( ! __contains_str(out_features, tokptr, ",") ) {
+                    xstrfmtcat(out_features, "%s%s", delim, tokptr);
+                    delim = ",";
                 }
             }
         }
-        xfree(new_copy);
+        xfree(orig_copy);
     }
     return out_features;
 }
