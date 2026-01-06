@@ -30,6 +30,54 @@
 #include <pthread.h>
 #include <errno.h>
 
+#ifdef NODE_FEATURE_CPUINFO_TESTING
+
+#define xstrfmtcat(__p, __fmt, args...) _xstrfmtcat(&(__p), __fmt, ## args)
+
+void _xstrfmtcat(char **str, const char *fmt, ...)
+        __attribute__((format(printf, 2, 3)));
+        
+void
+_xstrfmtcat(
+    char        **str,
+    const char  *fmt,
+    ...
+)
+{
+    va_list     argv;
+    char        *s = *str;
+    int         s_len, new_len, need_nul;
+    
+    /* Current length of the string: */
+    if ( s ) {
+        s_len = 1 + (*s ? strlen(s) : 0);
+        need_nul = 0;
+    } else {
+        s_len = 0;
+        need_nul = 1;
+    }
+    
+    /* Length of new string: */
+    va_start(argv, fmt);
+    new_len = vsnprintf(NULL, 0, fmt, argv);
+    va_end(argv);
+    
+    if ( new_len > 0 ) {
+        /* Resize: */
+        s = (char*)realloc(s, s_len + new_len + need_nul);
+        if ( ! s ) {
+            perror("Memory allocation failure in _xstrfmtcat");
+            exit(errno);
+        }
+        *str = s;
+        va_start(argv, fmt);
+        vsnprintf(s, s_len + new_len + need_nul, fmt, argv);
+        va_end(argv);
+    }
+}
+
+#endif
+
 /**
  * @brief   Does a string start with the given prefix string
  * @details The @a string is checked to see if @a prefix is present
