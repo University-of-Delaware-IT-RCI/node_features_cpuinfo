@@ -32,6 +32,8 @@
 
 #ifdef NODE_FEATURE_CPUINFO_TESTING
 
+#include <stdarg.h>
+
 #define xstrfmtcat(__p, __fmt, args...) _xstrfmtcat(&(__p), __fmt, ## args)
 
 void _xstrfmtcat(char **str, const char *fmt, ...)
