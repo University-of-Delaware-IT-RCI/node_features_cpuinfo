@@ -35,9 +35,11 @@
 #include <stdarg.h>
 
 #define xstrfmtcat(__p, __fmt, args...) _xstrfmtcat(&(__p), __fmt, ## args)
+#define xfree(__p) _xfree((void **)&(__p))
 
 void _xstrfmtcat(char **str, const char *fmt, ...)
         __attribute__((format(printf, 2, 3)));
+void _xfree(void **ptr);
         
 void
 _xstrfmtcat(
@@ -75,6 +77,16 @@ _xstrfmtcat(
         va_start(argv, fmt);
         vsnprintf(s, s_len + new_len + need_nul, fmt, argv);
         va_end(argv);
+    }
+}
+
+void _xfree(
+    void    **ptr
+)
+{
+    if ( *ptr ) {
+        free(*ptr);
+        *ptr = NULL;
     }
 }
 
