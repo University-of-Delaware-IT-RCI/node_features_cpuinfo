@@ -780,70 +780,6 @@ cpuinfo_parse_file(
 }
 
 
-#ifdef NODE_FEATURE_CPUINFO_TESTING
-
-/*
- * Main program for testing the cpuinfo-scanning code
- */
-int
-main(
-    int         argc,
-    const char* argv[]
-)
-{
-    cpuinfo_features_t  cif;
-    int                 argi = 1;
-    
-    while ( argi < argc ) {
-        cpuinfo_features_init(&cif);
-        cpuinfo_parse_file(&cif, argv[argi]);
-        printf("%s:    ", argv[argi]);
-        cpuinfo_features_summarize(&cif);
-        cpuinfo_features_reset(&cif);
-        argi++;
-    }
-    return 0;
-}
-
-#else
-
-#include "slurm/slurm.h"
-
-#include "src/common/assoc_mgr.h"
-#include "src/common/bitstring.h"
-#include "src/common/fd.h"
-#include "src/common/gres.h"
-#include "src/common/list.h"
-#include "src/common/macros.h"
-#include "src/common/node_conf.h"
-#include "src/common/pack.h"
-#include "src/common/parse_config.h"
-#include "src/common/read_config.h"
-#include "src/common/slurm_protocol_api.h"
-#include "src/common/timers.h"
-#include "src/common/uid.h"
-#include "src/common/xmalloc.h"
-#include "src/common/xstring.h"
-#include "src/slurmctld/job_scheduler.h"
-#include "src/slurmctld/locks.h"
-#include "src/slurmctld/node_scheduler.h"
-#include "src/slurmctld/reservation.h"
-#include "src/slurmctld/slurmctld.h"
-#include "src/slurmctld/state_save.h"
-#include "src/slurmd/slurmd/req.h"
-
-const char plugin_name[]        = "node_features cpuinfo plugin";
-const char plugin_type[]        = "node_features/cpuinfo";
-const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
-
-/* Configuration lock: */
-static pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/* Configuration parameters: */
-static bool is_node_features_inited = false;
-static cpuinfo_features_t node_features;
-
-
 #ifdef HAVE_PCI_DETECTION
 
 #include <pciaccess.h>
@@ -1031,6 +967,75 @@ static const uint32_t           pci_known_device_class_mask = 0xFF0000;
 
 
 #endif
+
+
+#ifdef NODE_FEATURE_CPUINFO_TESTING
+
+/*
+ * Main program for testing the cpuinfo-scanning code
+ */
+int
+main(
+    int         argc,
+    const char* argv[]
+)
+{
+    cpuinfo_features_t  cif;
+    int                 argi = 1;
+    char                *pci_features = NULL;
+
+#ifdef HAVE_PCI_DETECTION
+    pci_device_lookup(pci_known_devices, pci_known_device_class, pci_known_device_class_mask, &pci_features);
+#endif
+
+    while ( argi < argc ) {
+        cpuinfo_features_init(&cif);
+        cpuinfo_parse_file(&cif, argv[argi]);
+        printf("%s:    %s%s", argv[argi], pci_features?pci_features:"", pci_features?",":"");
+        cpuinfo_features_summarize(&cif);
+        cpuinfo_features_reset(&cif);
+        argi++;
+    }
+    return 0;
+}
+
+#else
+
+#include "slurm/slurm.h"
+
+#include "src/common/assoc_mgr.h"
+#include "src/common/bitstring.h"
+#include "src/common/fd.h"
+#include "src/common/gres.h"
+#include "src/common/list.h"
+#include "src/common/macros.h"
+#include "src/common/node_conf.h"
+#include "src/common/pack.h"
+#include "src/common/parse_config.h"
+#include "src/common/read_config.h"
+#include "src/common/slurm_protocol_api.h"
+#include "src/common/timers.h"
+#include "src/common/uid.h"
+#include "src/common/xmalloc.h"
+#include "src/common/xstring.h"
+#include "src/slurmctld/job_scheduler.h"
+#include "src/slurmctld/locks.h"
+#include "src/slurmctld/node_scheduler.h"
+#include "src/slurmctld/reservation.h"
+#include "src/slurmctld/slurmctld.h"
+#include "src/slurmctld/state_save.h"
+#include "src/slurmd/slurmd/req.h"
+
+const char plugin_name[]        = "node_features cpuinfo plugin";
+const char plugin_type[]        = "node_features/cpuinfo";
+const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
+
+/* Configuration lock: */
+static pthread_mutex_t config_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Configuration parameters: */
+static bool is_node_features_inited = false;
+static cpuinfo_features_t node_features;
 
 
 /**
